@@ -15,6 +15,7 @@ A user can run main.py directly for a simple WechatBot demo, which prints and au
 ## Extension
 
 The WechatBot is designed for easy and flexible extension. Message processing and / or sending extensions can be added to the framework by overriding the following functions:
+
 - run(conf)           : start the wechatbot with configuration conf (dict)
 - help()              : print help information
 - sendMsgTextByID(id, content)        : send a plain text message content to the group/contact with ID id
@@ -27,6 +28,7 @@ The WechatBot is designed for easy and flexible extension. Message processing an
 - procMsgAppLink(self, grpName, usrName, content, msg)    : process an app link message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
 - procMsgVideo(self, grpName, usrName, content, msg)  : process a video message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
 - procMsgRecall(self, grpName, usrName, content, msg) : process a message recalled content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
+
 By default, content provides processed message body (such as plain text, xml data, image url, etc.), and msg provides the raw message in json format.
 
 The following functions are provided for convenience:
