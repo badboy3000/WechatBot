@@ -10,7 +10,14 @@ We would thank https://github.com/liuwons/wxBot and https://github.com/Urinx/Wei
 
 qrcode is required to use WechatBot. schedule is required for event scheduling and timed task. PIL or pillow is optional.
 
-A user can run main.py directly for a simple WechatBot demo, which prints and auto replies all received plain text messages (except the ones sent by itself), and supports manual message sending. After starting up, the demo demonstrates a QRcode for cellphone scanning, and manual confirmation on the cellphone is required. Afterwards, one can type 'h', 'q', 'si', or 'sn' in the terminal, for 'help', 'quit', 'send message by ID', or 'send message by name', respectively.
+A user can run main.py directly for a simple WechatBot demo, which supports:
+
+- Receiving all messages and printing plain text ones.
+- Manual message sending.
+- (Commented in the demo main.py) Auto replying received plain text messages (except the ones sent by itself).
+- Reading scheduled events in sampleEvents.conf and sending plain text at scheduled time.
+
+After starting up, the demo demonstrates a QRcode for cellphone scanning, and manual confirmation on the cellphone is required. Afterwards, one can type 'h', 'q', 'si', or 'sn' in the terminal, for 'help', 'quit', 'send message by ID', or 'send message by name', respectively.
 
 ## Extension
 
