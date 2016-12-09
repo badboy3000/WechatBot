@@ -19,6 +19,8 @@ A user can run main.py directly for a simple WechatBot demo, which supports:
 
 After starting up, the demo demonstrates a QRcode for cellphone scanning, and manual confirmation on the cellphone is required. Afterwards, one can type 'h', 'q', 'si', or 'sn' in the terminal, for 'help', 'quit', 'send message by ID', or 'send message by name', respectively.
 
+Sepcially, for online distribution, two bash scripts are provided for background running and logging (start_wechatbot.sh) and status monitoring (watch_wechatbot.sh).
+
 ## Extension
 
 The WechatBot is designed for easy and flexible extension. Message processing and / or sending extensions can be added to the framework by overriding the following functions:
