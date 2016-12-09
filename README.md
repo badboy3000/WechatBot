@@ -4,7 +4,7 @@ WechatBot serves as a basic tool for automatical Wechat message processing (rece
 
 We note that no official Web Wechat APIs are available, thus the stability of the project is not guaranteed.
 
-We would thank https://github.com/liuwons/wxBot and https://github.com/Urinx/WeixinBot for their work on Python based Web Wechat projects. Most APIs in this projects are implemented according to their work.
+We would thank https://github.com/liuwons/wxBot and https://github.com/Urinx/WeixinBot for their work on Python based Web Wechat projects. Most APIs in this project are implemented according to their work.
 
 ## Usage
 
