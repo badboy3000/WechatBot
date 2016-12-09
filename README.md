@@ -12,7 +12,7 @@ qrcode is required to use WechatBot. schedule is required for event scheduling a
 
 A user can run main.py directly for a simple WechatBot demo, which supports:
 
-- Receiving all messages and printing plain text ones.
+- Receiving all messages, printing plain text ones, and saving image, voice, video ones as files.
 - Manual message sending.
 - (Commented in the demo main.py) Auto replying received plain text messages (except the ones sent by itself).
 - Reading scheduled events in sampleEvents.conf and sending plain text at scheduled time.
@@ -29,14 +29,15 @@ The WechatBot is designed for easy and flexible extension. Message processing an
 - help()              : print help information
 - sendMsgTextByID(id, content)        : send a plain text message content to the group/contact with ID id
 - sendMsgTextByName(name, content)    : send a plain text message content to the group/contact with remark name or nickname name
-- procMsgText(self, grpName, usrName, content, msg)   : process a plain text message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-- procMsgImage(self, grpName, usrName, content, msg)  : process an image content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-- procMsgVoice(self, grpName, usrName, content, msg)  : process a voice message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-- procMsgCard(self, grpName, usrName, content, msg)   : process a card message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-- procMsgEmoji(self, grpName, usrName, content, msg)  : process an emoji content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-- procMsgAppLink(self, grpName, usrName, content, msg)    : process an app link message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-- procMsgVideo(self, grpName, usrName, content, msg)  : process a video message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-- procMsgRecall(self, grpName, usrName, content, msg) : process a message recalled content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
+- procMsgText(self, grpName, ufrName, utoName, content, msg)   : process a plain text message content, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg
+- procMsgImage(self, grpName, ufrName, utoName, msg)  : process an image, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg, and the data is saved under configured folder in the name of msg["MsgId"].ext
+- procMsgVoice(self, grpName, ufrName, utoName, msg)  : process a voice message, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg, and the data is saved under configured folder in the name of msg["MsgId"].ext
+- procMsgCard(self, grpName, ufrName, utoName, msg)   : process a card message, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg
+- procMsgEmoji(self, grpName, ufrName, utoName, msg)  : process an emoji, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg, and the data is saved under configured folder in the name of msg["MsgId"].ext
+- procMsgAppLink(self, grpName, ufrName, utoName, content, msg)    : process an app link message content, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg
+- procMsgVideo(self, grpName, ufrName, utoName, msg)  : process a video message, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg, and the data is saved under configured folder in the name of msg["MsgId"].ext
+- procMsgGroupRename(self, grpName, ufrName, utoName, content, msg)    : process a group rename message content, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg
+- procMsgRecall(self, grpName, ufrName, utoName, content, msg) : process a message recalled content, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg
 
 By default, content provides processed message body (such as plain text, xml data, image url, etc.), and msg provides the raw message in json format.
 
