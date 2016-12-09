@@ -10,11 +10,15 @@ import  os
 import  traceback
 # logging configuration
 import  logging
-logging.basicConfig(format="%(levelname)-9s[%(asctime)s][%(filename)s:%(funcName)s:%(lineno)d] %(message)s \\EOF", level=logging.INFO);
+logging.basicConfig(format="%(levelname)-9s[%(asctime)s][%(filename)s:%(funcName)s:%(lineno)d] %(message)s \\EOF", level=logging.WARNING);
 # string processing
 import  string
 # time processing and thread sleeping
 import  time
+try:
+    import  schedule
+except:
+    logging.fatal('No schedule module installed. Try "pip install schedule" first.')
 # http request
 import  urllib
 import  urllib2
@@ -84,6 +88,8 @@ class WechatBot(object):
                 "Lang"              : "zh_CN",
                 "DeviceID"          : "e" + repr(random.random())[2 : 17],
                 "MessageSyncInterval"   : 1,
+                "LogLevel"          : logging.INFO,
+                "EventConfFile"     : "",
             }
         self._uuid  = ""
         self._uri   = ""
@@ -105,14 +111,20 @@ class WechatBot(object):
         self._isRunning =   False
         self._cookie = cookielib.CookieJar()
         urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie)))
+        
+        self._logger = logging.Logger("WechatBot")
+        loghandler = logging.StreamHandler()
+        loghandler.setFormatter(logging.Formatter("%(levelname)-9s[%(asctime)s][%(filename)s:%(funcName)s:%(lineno)d] %(message)s \\EOF"))
+        self._logger.setLevel(self._conf["LogLevel"])
+        self._logger.addHandler(loghandler)
 
-        logging.debug("WechatBot inited.")
+        self._logger.debug("WechatBot inited.")
 
         return
 
     def __del__(self):
 
-        logging.debug("WechatBot deleted.")
+        self._logger.debug("WechatBot deleted.")
 
         return
     
@@ -144,41 +156,41 @@ class WechatBot(object):
             if (self._conf.has_key(key)):
                 self._conf[key] = conf[key]
             else:
-                logging.warning("Invalid configuration: (%s : %s), ignored.", key, conf[key])
+                self._logger.warning("Invalid configuration: (%s : %s), ignored.", key, conf[key])
 
         # get UUID
         if not self._getUUID():
-            logging.error("Failed to get UUID.")
+            self._logger.error("Failed to get UUID.")
             return  False
 
         # get QRCode
         if not self._getQRCode():
-            logging.error("Failed to generate QRCode.")
+            self._logger.error("Failed to generate QRCode.")
             return  False
         else:
             print("Please scan the QRCode to login.")
 
         # login
         if not self._login():
-            logging.error("Failed to login.")
+            self._logger.error("Failed to login.")
             return  False
         else:
-            logging.debug("Login successfully.")
+            self._logger.debug("Login successfully.")
 
         # initialize Wechat and regist status notification
         if not self._initWechat():
-            logging.error("Failed to initialize Wechat.")
+            self._logger.error("Failed to initialize Wechat.")
             return  False
         else:
-            logging.debug("Initialize successfully.")
+            self._logger.debug("Initialize successfully.")
 
         # get contacts and groups
         if not self._getContacts():
-            logging.error("Failed to get contact and group information.")
+            self._logger.error("Failed to get contact and group information.")
             return  False
 
         # print wechat information
-        logging.info("WechatBot started successfully. %s", self.__str__())
+        self._logger.info("WechatBot started successfully. %s", self.__str__())
 
         # handle input and process message
         self._isRunning = True
@@ -187,6 +199,8 @@ class WechatBot(object):
 
             recvThread = threading.Thread(target = self._recvMsg)
             recvThread.start()
+            scheThread = threading.Thread(target = self._scheMsg)
+            scheThread.start()
 
             while self._isRunning:
 
@@ -205,16 +219,17 @@ class WechatBot(object):
                     content = raw_input("Please input message text, enter to send:")
                     self.sendMsgTextByName(id, content)
                 else:
-                    logging.warning("Unknown command %s, ignored.", cmd)
+                    self._logger.warning("Unknown command %s, ignored.", cmd)
 
+            scheThread.join()
             recvThread.join()
 
         except Exception:
-            logging.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected expection: %s", traceback.format_exc())
             return  False
 
         # print wechat information
-        logging.info("WechatBot exited successfully. %s", self.__str__())
+        self._logger.info("WechatBot exited successfully. %s", self.__str__())
 
         return  True
 
@@ -278,7 +293,7 @@ sn  :   send text message by name
                     else:
                         return  user["NickName"]
 
-        logging.warning("Unknown user id %s", id)
+        self._logger.warning("Unknown user id %s", id)
         return  "Unknown"
 
     def getIDByName(self, name):
@@ -319,20 +334,20 @@ sn  :   send text message by name
             if 0 == data["BaseResponse"]["Ret"]:
                 if "@@" == id[:2]:
                     grpName = self.getGrpNameByID(id)
-                    logging.info("Sent a message in group [%s]:\n%s", grpName, content)
+                    self._logger.info("Sent a message in group [%s]:\n%s", grpName, content)
                 elif "@" == id[:1]:
                     usrName = self.getUsrNameByID(id)
-                    logging.info("Sent a message to [%s]:\n%s", usrName, content)
+                    self._logger.info("Sent a message to [%s]:\n%s", usrName, content)
                 else:
-                    logging.info("Sent a message to ID[%s]:\n%s", id, content)
+                    self._logger.info("Sent a message to ID[%s]:\n%s", id, content)
 
                 return  True
 
             else:
-                logging.warning("Failed to send a message to ID[%s]:\n%s", id, content)
+                self._logger.warning("Failed to send a message to ID[%s]:\n%s", id, content)
     
         except Exception:
-            logging.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected expection: %s", traceback.format_exc())
         
         return  False
 
@@ -342,6 +357,14 @@ sn  :   send text message by name
 
     def procMsgText(self, grpName, usrName, content, msg):
 
+        # an example
+        """
+        if usrName != self._User["NickName"]:
+            if "" != grpName:
+                self.sendMsgTextByName(grpName, "At " + str(time.asctime(time.localtime(time.time()))) + ", " + usrName + " says : " + content)
+            else:
+                self.sendMsgTextByName(usrName, "[" + str(time.asctime(time.localtime(time.time()))) + "][Auto reply]您的消息我已收到。")
+        """
         return
 
     def procMsgImage(self, grpName, usrName, content, msg):
@@ -370,6 +393,61 @@ sn  :   send text message by name
 
     def procMsgRecall(self, grpName, usrName, content, msg):
 
+        return
+    
+    def scheJob(self):
+
+        # an example
+        """
+        (t_year, t_month, t_day, t_hour, t_minute, t_second, t_weekday, t_yearday, t_isdst) = time.localtime(time.time())
+
+        # embeded events
+        if 8 == t_hour and 0 == t_minute:
+            self.sendMsgTextByID("filehelper", "[" + time.asctime(time.localtime(time.time())).__str__() + "]" + "08:00 定时消息")
+        elif 23 == t_hour and 0 == t_minute:
+            self.sendMsgTextByID("filehelper", "[" + time.asctime(time.localtime(time.time())).__str__() + "]" + "23:00 定时消息")
+
+        # events from configure file
+        # event configure file is organized as the following format (json):
+        #   {
+        #       "Events":
+        #       [
+        #
+        #           {
+        #               "MsgType"       : 1,
+        #               "TargetID"      : "filehelper",
+        #               "MsgContent"    : "A scheduled message (every hour).",
+        #               "Year"          : -1,
+        #               "Month"         : -1,
+        #               "Day"           : -1,
+        #               "Hour"          : -1,
+        #               "Minute"        : 0,
+        #               "Weekday"       : -1,
+        #               "Yearday"       : -1
+        #           }
+        #       ]
+        #   }
+        # 
+        if "" != self._conf["EventConfFile"]:
+            try:
+                file = open(self._conf["EventConfFile"], "r")
+                data = json.loads(file.read(), object_hook = wechatbot._conv_dict)
+                file.close()
+                for event in data["Events"]:
+                    if (-1 == event["Year"] or t_year == event["Year"]) \
+                        and (-1 == event["Month"] or t_month == event["Month"]) \
+                        and (-1 == event["Day"] or t_day == event["Day"]) \
+                        and (-1 == event["Hour"] or t_hour == event["Hour"]) \
+                        and (-1 == event["Minute"] or t_minute == event["Minute"]) \
+                        and (-1 == event["Weekday"] or t_weekday == event["Weekday"]) \
+                        and (-1 == event["Yearday"] or t_yearday == event["Yearday"]):
+                        if 1 == event["MsgType"]:
+                            self.sendMsgTextByID(event["TargetID"], event["MsgContent"])
+                        else:
+                            self._logger.warning("Unsupported message type %d.", event["MsgType"])
+            except Exception:
+                self._logger.error("Unexpected expection: %s", traceback.format_exc())
+        """
         return    
 
     def _post(self, url, prm, jsonFmt = True):
@@ -386,16 +464,16 @@ sn  :   send text message by name
             if jsonFmt:
                 data = json.loads(data, object_hook = _conv_dict)
 
-            logging.debug(data.__str__())
+            self._logger.debug(data.__str__())
             return  data
         except urllib2.HTTPError, e:
-            logging.error("HTTPError: %s", e.code.__str__())
+            self._logger.error("HTTPError: %s", e.code.__str__())
         except urllib2.URLError, e:
-            logging.error("URLError: %s", e.reason.__str__())
+            self._logger.error("URLError: %s", e.reason.__str__())
         except httplib.HTTPException, e:
-            logging.error("HTTPException: %s", e.__str__())
+            self._logger.error("HTTPException: %s", e.__str__())
         except Exception:
-            logging.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected expection: %s", traceback.format_exc())
 
         return  ""
 
@@ -413,16 +491,16 @@ sn  :   send text message by name
         try:
             response = urllib2.urlopen(request)
             data = response.read()
-            logging.debug(data.__str__())
+            self._logger.debug(data.__str__())
             return  data
         except urllib2.HTTPError, e:
-            logging.error("HTTPError: %s", e.code.__str__())
+            self._logger.error("HTTPError: %s", e.code.__str__())
         except urllib2.URLError, e:
-            logging.error("URLError: %s", e.reason.__str__())
+            self._logger.error("URLError: %s", e.reason.__str__())
         except httplib.HTTPException, e:
-            logging.error("HTTPException: %s", e.__str__())
+            self._logger.error("HTTPException: %s", e.__str__())
         except Exception:
-            logging.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected expection: %s", traceback.format_exc())
 
         return  ""
 
@@ -458,12 +536,12 @@ sn  :   send text message by name
             img.show()
             return  True
         except Exception:
-            logging.debug("Failed to display qrcode image due to expection: %s \nTrying to display qrcode in tty mode.", traceback.format_exc())
+            self._logger.debug("Failed to display qrcode image due to expection: %s \nTrying to display qrcode in tty mode.", traceback.format_exc())
             try:
                 qr.print_ascii(invert = True)
                 return  True
             except Exception:
-                logging.error("Unexpected expection: %s", traceback.format_exc())
+                self._logger.error("Unexpected expection: %s", traceback.format_exc())
 
         return  False
 
@@ -484,15 +562,15 @@ sn  :   send text message by name
                         redirect_uri = data.group(1) + "&fun=new"
                         self._uri = redirect_uri[:redirect_uri.rfind("/")]
                     else:
-                        logging.error("Failed to parse redirect uri from data %s.", info)
+                        self._logger.error("Failed to parse redirect uri from data %s.", info)
                         break;
                 elif "201" == stat:
                     print("Please confirm login on your cellphone.")
                 elif "408" == stat:
-                    logging.error("Login timeout.")
+                    self._logger.error("Login timeout.")
                     break
                 else:
-                    logging.error("Login error with error code %s.", stat)
+                    self._logger.error("Login error with error code %s.", stat)
                     break;
             time.sleep(1)
         else:
@@ -544,7 +622,7 @@ sn  :   send text message by name
                 return  0 == data["BaseResponse"]["Ret"]
                 
         except Exception:
-            logging.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected expection: %s", traceback.format_exc())
 
         return  False
     
@@ -558,7 +636,7 @@ sn  :   send text message by name
 
         try:
             if data["MemberCount"] != len(data["MemberList"]):
-                logging.warning("MemberCount %d and MemberList length %d not equal.", (data["MemberCount"], len(data["MemberList"])))
+                self._logger.warning("MemberCount %d and MemberList length %d not equal.", (data["MemberCount"], len(data["MemberList"])))
             for contact in data["MemberList"]:
                 # Public/Service Account
                 if contact["VerifyFlag"] & 0x08 != 0:
@@ -573,7 +651,7 @@ sn  :   send text message by name
                 else:
                     self._ContactList.append(contact)
         except Exception:
-            logging.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected expection: %s", traceback.format_exc())
             return  False
 
         if len(self._GroupList) > 0:
@@ -589,7 +667,7 @@ sn  :   send text message by name
             try:
                 self._GroupList = data["ContactList"]
             except Exception:
-                logging.error("Unexpected expection: %s", traceback.format_exc())
+                self._logger.error("Unexpected expection: %s", traceback.format_exc())
                 return  False
 
         return  True
@@ -607,7 +685,7 @@ sn  :   send text message by name
         try:
             return  data["ContactList"]
         except Exception:
-            logging.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected expection: %s", traceback.format_exc())
             return  None
 
     def _syncCheck(self):
@@ -624,7 +702,7 @@ sn  :   send text message by name
                 if "0" == ret:
                     return  [ret, sel]
 
-            logging.error("No available sync host found.")
+            self._logger.error("No available sync host found.")
             self._syncHost = ""
             return  [-1, -1]
 
@@ -646,7 +724,7 @@ sn  :   send text message by name
                     data = re.search(r'window.synccheck={retcode:"(\d+)",selector:"(\d+)"}', data)
                     return  [data.group(1), data.group(2)]
                 except Exception:
-                    logging.warning("Unexpected expection while checking url %s : %s", url, traceback.format_exc())
+                    self._logger.warning("Unexpected expection while checking url %s : %s", url, traceback.format_exc())
             
             self._syncHost = ""
             return  [-1, -1]
@@ -668,7 +746,7 @@ sn  :   send text message by name
             
             return  data
         except Exception:
-            logging.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected expection: %s", traceback.format_exc())
             return  None    
 
     def _procMsg(self, data):
@@ -704,44 +782,44 @@ sn  :   send text message by name
                 # standard text message
                 if 1 == msgType:
                     if "" == grpName:
-                        logging.info("Received a message from [%s] :\n%s", usrName, content)
+                        self._logger.info("Received a message from [%s] :\n%s", usrName, content)
                     else:
-                        logging.info("Received a message in group [%s] from [%s] :\n%s", grpName, usrName, content)
+                        self._logger.info("Received a message in group [%s] from [%s] :\n%s", grpName, usrName, content)
                     self.procMsgText(grpName, usrName, content, msg)
                 # image message
                 elif 3 == msgType:
                     if "" == grpName:
-                        logging.info("Received an image from [%s] :\n%s", usrName, content)
+                        self._logger.info("Received an image from [%s] :\n%s", usrName, content)
                     else:
-                        logging.info("Received an image in group [%s] from [%s] :\n%s", grpName, usrName, content)
+                        self._logger.info("Received an image in group [%s] from [%s] :\n%s", grpName, usrName, content)
                     self.procMsgImage(grpName, usrName, content, msg)
                 # voice message
                 elif 34 == msgType:
                     if "" == grpName:
-                        logging.info("Received a voice message from [%s] :\n%s", usrName, content)
+                        self._logger.info("Received a voice message from [%s] :\n%s", usrName, content)
                     else:
-                        logging.info("Received a voice message in group [%s] from [%s] :\n%s", grpName, usrName, content)
+                        self._logger.info("Received a voice message in group [%s] from [%s] :\n%s", grpName, usrName, content)
                     self.procMsgVoice(grpName, usrName, content, msg)
                 # card message
                 elif 42 == msgType:
                     if "" == grpName:
-                        logging.info("Received a card message from [%s] :\n%s", usrName, content)
+                        self._logger.info("Received a card message from [%s] :\n%s", usrName, content)
                     else:
-                        logging.info("Received a card message in group [%s] from [%s] :\n%s", grpName, usrName, content)
+                        self._logger.info("Received a card message in group [%s] from [%s] :\n%s", grpName, usrName, content)
                     self.procMsgCard(grpName, usrName, content, msg)
                 # emoji message
                 elif 47 == msgType:
                     if "" == grpName:
-                        logging.info("Received an emoji from [%s] :\n%s", usrName, content)
+                        self._logger.info("Received an emoji from [%s] :\n%s", usrName, content)
                     else:
-                        logging.info("Received an emoji in group [%s] from [%s] :\n%s", grpName, usrName, content)
+                        self._logger.info("Received an emoji in group [%s] from [%s] :\n%s", grpName, usrName, content)
                     self.procMsgEmoji(grpName, usrName, content, msg)
                 # shared app link message
                 elif 49 == msgType:
                     if "" == grpName:
-                        logging.info("Received an app link message from [%s] :\n%s", usrName, content)
+                        self._logger.info("Received an app link message from [%s] :\n%s", usrName, content)
                     else:
-                        logging.info("Received an app link message in group [%s] from [%s] :\n%s", grpName, usrName, content)
+                        self._logger.info("Received an app link message in group [%s] from [%s] :\n%s", grpName, usrName, content)
                     self.procMsgAppLink(grpName, usrName, content, msg)
                 # contact information update
                 elif 51 == msgType:
@@ -762,29 +840,29 @@ sn  :   send text message by name
                 # video message
                 elif 62 == msgType:
                     if "" == grpName:
-                        logging.info("Received a video message from [%s] :\n%s", usrName, content)
+                        self._logger.info("Received a video message from [%s] :\n%s", usrName, content)
                     else:
-                        logging.info("Received a video message in group [%s] from [%s] :\n%s", grpName, usrName, content)
+                        self._logger.info("Received a video message in group [%s] from [%s] :\n%s", grpName, usrName, content)
                     self.procMsgVideo(grpName, usrName, content, msg)
                 # group rename
                 elif 10000 == msgType:
-                    logging.info("Group name change in group ID[%s]: %s", msg["FromUserName"], content)
+                    self._logger.info("Group name change in group ID[%s]: %s", msg["FromUserName"], content)
                 # recall message
                 elif 10002 == msgType:
                     if "" == grpName:
-                        logging.info("Received a message recall from [%s] :\n%s", usrName, content)
+                        self._logger.info("Received a message recall from [%s] :\n%s", usrName, content)
                     else:
-                        logging.info("Received a message recall in group [%s] from [%s] :\n%s", grpName, usrName, content)
+                        self._logger.info("Received a message recall in group [%s] from [%s] :\n%s", grpName, usrName, content)
                     self.procMsgRecall(grpName, usrName, content, msg)
                 # unknown message type
                 else:
                     if "" == grpName:
-                        logging.warning("Received a message from [%s] of unknown type %d.", usrName, msgType)
+                        self._logger.warning("Received a message from [%s] of unknown type %d.", usrName, msgType)
                     else:
-                        logging.warning("Received a message in group [%s] from [%s] of unknown type %d", grpName, usrName, msgType)
+                        self._logger.warning("Received a message in group [%s] from [%s] of unknown type %d", grpName, usrName, msgType)
 
         except Exception:
-            logging.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected expection: %s", traceback.format_exc())
 
         return    
 
@@ -796,28 +874,40 @@ sn  :   send text message by name
 
             [ret, sel] = self._syncCheck()
             if "1100" == ret:
-                logging.info("Logout on the cellphone. The WechatBot is forced to quit.")
+                self._logger.info("Logout on the cellphone. The WechatBot is forced to quit.")
                 self._isRunning = False
             elif "1101" == ret:
-                logging.info("Wechat (web) login at other place. The WechatBot is forced to quit.")
+                self._logger.info("Wechat (web) login at other place. The WechatBot is forced to quit.")
                 self._isRunning = False
             elif "0" == ret:
                 if "0" == sel:
                     pass
                 elif "2" == sel:
-                    logging.debug("Message received.")
+                    self._logger.debug("Message received.")
                     data = self._sync()
                     self._procMsg(data)
                 elif "7" == sel:
-                    logging.debug("Activity using cellphone detected.")
+                    self._logger.debug("Activity using cellphone detected.")
                     data = self._sync()
                     self._procMsg(data)
                 else:
-                    logging.warning("Unknown selector code: %s. Ignored.", sel)
+                    self._logger.warning("Unknown selector code: %s. Ignored.", sel)
             else:
-                logging.warning("Unknown return code pair: %s, %s. Ignored.", ret, sel)
+                self._logger.warning("Unknown return code pair: %s, %s. Ignored.", ret, sel)
 
             if time.time() - lastCheckTime <= self._conf["MessageSyncInterval"]:
                 time.sleep(self._conf["MessageSyncInterval"] - (time.time() - lastCheckTime))
 
-        return            
+        return
+
+    def _scheMsg(self):
+
+        try:
+            schedule.every().minute.do(self.scheJob)
+            while self._isRunning:
+                schedule.run_pending()
+                time.sleep(1)
+        except Exception:
+            self._logger.error("Unexpected expection: %s", traceback.format_exc())
+
+        return    

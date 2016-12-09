@@ -8,17 +8,13 @@ sys.setdefaultencoding("utf-8")
 import  traceback
 # logging configuration
 import  logging
-logging.basicConfig(format="%(levelname)-9s[%(asctime)s][%(filename)s:%(funcName)s:%(lineno)d] %(message)s \\EOF", level=logging.INFO);
+logging.basicConfig(format="%(levelname)-9s[%(asctime)s][%(filename)s:%(funcName)s:%(lineno)d] %(message)s \\EOF", level=logging.WARNING);
+# json codec
+import  json
 # time processing and thread sleeping
 import  time
-try:
-    import  schedule
-except:
-    logging.fatal('No schedule module installed. Try "pip install schedule" first.')
 # random module for generating random strings
 import  random
-# thread module for multi-thread message recieving and sending
-import  threading
 
 # wechatbot
 import  wechatbot
@@ -48,17 +44,20 @@ class WechatBotDemo(wechatbot.WechatBot):
         procMsgVideo(self, grpName, usrName, content, msg)  : process a video message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
         procMsgRecall(self, grpName, usrName, content, msg) : process a message recalled content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
 
+        scheJob(self)       : check pending jobs per minute and execute them
     """
 
     # override processing function
     def procMsgText(self, grpName, usrName, content, msg):
 
+        # an example
+        """
         if usrName != self._User["NickName"]:
             if "" != grpName:
                 self.sendMsgTextByName(grpName, "At " + str(time.asctime(time.localtime(time.time()))) + ", " + usrName + " says : " + content)
             else:
                 self.sendMsgTextByName(usrName, "[" + str(time.asctime(time.localtime(time.time()))) + "][Auto reply]您的消息我已收到。")
-
+        """
         return
 
     # override processing function
@@ -94,7 +93,61 @@ class WechatBotDemo(wechatbot.WechatBot):
     # override processing function
     def procMsgRecall(self, grpName, usrName, content, msg):
 
-        return    
+        return
+
+    # override scheduling function
+    def scheJob(self):
+
+        (t_year, t_month, t_day, t_hour, t_minute, t_second, t_weekday, t_yearday, t_isdst) = time.localtime(time.time())
+
+        # embeded events
+        if 8 == t_hour and 0 == t_minute:
+            self.sendMsgTextByID("filehelper", "[" + time.asctime(time.localtime(time.time())).__str__() + "]" + "08:00 定时消息")
+        elif 23 == t_hour and 0 == t_minute:
+            self.sendMsgTextByID("filehelper", "[" + time.asctime(time.localtime(time.time())).__str__() + "]" + "23:00 定时消息")
+
+        # events from configure file
+        # event configure file is organized as the following format (json):
+        #   {
+        #       "Events":
+        #       [
+        #
+        #           {
+        #               "MsgType"       : 1,
+        #               "TargetID"      : "filehelper",
+        #               "MsgContent"    : "A scheduled message (every hour).",
+        #               "Year"          : -1,
+        #               "Month"         : -1,
+        #               "Day"           : -1,
+        #               "Hour"          : -1,
+        #               "Minute"        : 0,
+        #               "Weekday"       : -1,
+        #               "Yearday"       : -1
+        #           }
+        #       ]
+        #   }
+        # 
+        if "" != self._conf["EventConfFile"]:
+            try:
+                file = open(self._conf["EventConfFile"], "r")
+                data = json.loads(file.read(), object_hook = wechatbot._conv_dict)
+                file.close()
+                for event in data["Events"]:
+                    if (-1 == event["Year"] or t_year == event["Year"]) \
+                        and (-1 == event["Month"] or t_month == event["Month"]) \
+                        and (-1 == event["Day"] or t_day == event["Day"]) \
+                        and (-1 == event["Hour"] or t_hour == event["Hour"]) \
+                        and (-1 == event["Minute"] or t_minute == event["Minute"]) \
+                        and (-1 == event["Weekday"] or t_weekday == event["Weekday"]) \
+                        and (-1 == event["Yearday"] or t_yearday == event["Yearday"]):
+                        if 1 == event["MsgType"]:
+                            self.sendMsgTextByID(event["TargetID"], event["MsgContent"])
+                        else:
+                            self._logger.warning("Unsupported message type %d.", event["MsgType"])
+            except Exception:
+                self._logger.error("Unexpected expection: %s", traceback.format_exc())
+
+        return
         
 def main():
 
@@ -104,6 +157,8 @@ def main():
             #"Lang"              : "zh_CN",
             #"DeviceID"          : "e" + repr(random.random())[2 : 17],
             #"MessageSyncInterval"   : 1,
+            #"LogLevel"          : logging.INFO,
+            "EventConfFile"     : "sampleEvents.conf",
         }
 
     # configuration in command line arguments
@@ -117,18 +172,10 @@ def main():
     
     # wechat bot
     wbot = WechatBotDemo()
-    wbotThread = threading.Thread(target = wbot.run, args = (conf))
-    wbotThread.start()
-
-    # scheduled events
-    schedule.every().minutes.do(WechatBotDemo.sendMsgTextByID, wbot, "filehelper", "定时消息/1min")
-    schedule.every(10).minutes.do(WechatBotDemo.sendMsgTextByID, wbot, "filehelper", "定时消息/10min")
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+    wbot.run(conf)
 
     return
     
 if __name__ == "__main__" :
-    
+
     main()
