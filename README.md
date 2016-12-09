@@ -39,8 +39,13 @@ The WechatBot is designed for easy and flexible extension. Message processing an
 By default, content provides processed message body (such as plain text, xml data, image url, etc.), and msg provides the raw message in json format.
 
 The following functions are provided for convenience:
+
 - getGrpNameByID(id)  : obtain a group's nickname by its ID (a.k.a. UserName, string)
 - getUsrNameByID(id)  : obtain a contact's remark name (if valid) or nickname by its ID (a.k.a. UserName, string)
 - getIDByName(id)     : obtain a group/contact's ID by its remark name (contact only) or nickname
+
+The scheduled job processing function is:
+
+- scheJob()           : check pending jobs per minute and execute them
 
 Furthermore, more sendMsg functions can be defined.
