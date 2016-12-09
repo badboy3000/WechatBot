@@ -35,63 +35,69 @@ class WechatBotDemo(wechatbot.WechatBot):
         sendMsgTextByID(id, content)        : send a plain text message content to the group/contact with ID id
         sendMsgTextByName(name, content)    : send a plain text message content to the group/contact with remark name or nickname name
 
-        procMsgText(self, grpName, usrName, content, msg)   : process a plain text message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-        procMsgImage(self, grpName, usrName, content, msg)  : process an image content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-        procMsgVoice(self, grpName, usrName, content, msg)  : process a voice message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-        procMsgCard(self, grpName, usrName, content, msg)   : process a card message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-        procMsgEmoji(self, grpName, usrName, content, msg)  : process an emoji content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-        procMsgAppLink(self, grpName, usrName, content, msg)    : process an app link message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-        procMsgVideo(self, grpName, usrName, content, msg)  : process a video message content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
-        procMsgRecall(self, grpName, usrName, content, msg) : process a message recalled content, sent by user usrName, in group grpName (if not empty); original message is provided in msg
+        procMsgText(self, grpName, ufrName, utoName, content, msg)   : process a plain text message content, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg
+        procMsgImage(self, grpName, ufrName, utoName, msg)  : process an image, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg, and the data is saved under configured folder in the name of msg["MsgId"].ext
+        procMsgVoice(self, grpName, ufrName, utoName, msg)  : process a voice message, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg, and the data is saved under configured folder in the name of msg["MsgId"].ext
+        procMsgCard(self, grpName, ufrName, utoName, msg)   : process a card message, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg
+        procMsgEmoji(self, grpName, ufrName, utoName, msg)  : process an emoji, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg, and the data is saved under configured folder in the name of msg["MsgId"].ext
+        procMsgAppLink(self, grpName, ufrName, utoName, content, msg)    : process an app link message content, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg
+        procMsgVideo(self, grpName, ufrName, utoName, msg)  : process a video message, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg, and the data is saved under configured folder in the name of msg["MsgId"].ext
+        procMsgGroupRename(self, grpName, ufrName, utoName, content, msg)    : process a group rename message content, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg
+        procMsgRecall(self, grpName, ufrName, utoName, content, msg) : process a message recalled content, sent by user ufrName, to user utoName, in group grpName (if not empty); original message is provided in msg
 
         scheJob(self)       : check pending jobs per minute and execute them
     """
 
     # override processing function
-    def procMsgText(self, grpName, usrName, content, msg):
+    def procMsgText(self, grpName, ufrName, utoName, content, msg):
 
         # an example
         """
-        if usrName != self._User["NickName"]:
+        if ufrName != self._User["NickName"]:
             if "" != grpName:
-                self.sendMsgTextByName(grpName, "At " + str(time.asctime(time.localtime(time.time()))) + ", " + usrName + " says : " + content)
+                self.sendMsgTextByName(grpName, "At " + str(time.asctime(time.localtime(time.time()))) + ", " + ufrName + " says : " + content)
             else:
-                self.sendMsgTextByName(usrName, "[" + str(time.asctime(time.localtime(time.time()))) + "][Auto reply]您的消息我已收到。")
+                self.sendMsgTextByName(ufrName, "[" + str(time.asctime(time.localtime(time.time()))) + "][Auto reply]您的消息我已收到。")
         """
         return
 
     # override processing function
-    def procMsgImage(self, grpName, usrName, content, msg):
+    def procMsgImage(self, grpName, ufrName, utoName, msg):
 
         return
 
     # override processing function
-    def procMsgVoice(self, grpName, usrName, content, msg):
+    def procMsgVoice(self, grpName, ufrName, utoName, msg):
 
         return
 
     # override processing function
-    def procMsgCard(self, grpName, usrName, content, msg):
+    def procMsgCard(self, grpName, ufrName, utoName, msg):
 
         return
 
     # override processing function
-    def procMsgEmoji(self, grpName, usrName, content, msg):
+    def procMsgEmoji(self, grpName, ufrName, utoName, msg):
 
         return
 
     # override processing function
-    def procMsgAppLink(self, grpName, usrName, content, msg):
+    def procMsgAppLink(self, grpName, ufrName, utoName, content, msg):
 
         return
 
     # override processing function
-    def procMsgVideo(self, grpName, usrName, content, msg):
+    def procMsgVideo(self, grpName, ufrName, utoName, msg):
 
         return
 
     # override processing function
-    def procMsgRecall(self, grpName, usrName, content, msg):
+    def procMsgGroupRename(self, grpName, ufrName, utoName, content, msg):
+
+        return
+
+    # override processing function
+    def procMsgRecall(self, grpName, ufrName, utoName, content, msg):
 
         return
 
@@ -160,6 +166,11 @@ def main():
             #"MessageSyncInterval"   : 1,
             # log configuration
             "LogLevel"          : logging.INFO,
+            # data saving configuration
+            "DataImageFolder"   : "dat",
+            "DataVoiceFolder"   : "dat",
+            "DataVideoFolder"   : "dat",
+            "DataEmojiFolder"   : "dat",
             # interactive usage
             "EnableInteracting" : True,
             # scheduled events configuration

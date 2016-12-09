@@ -1,8 +1,9 @@
 #! /bin/bash 
 
+DIR="log"
 procname="python main.py"
 filename=""
-for item in `ls *.log | grep -v QRCODE`
+for item in `ls ${DIR}/*.log | grep -v QRCODE`
 do
     filename=${item}
 done

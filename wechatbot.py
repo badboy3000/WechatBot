@@ -51,7 +51,7 @@ def _conv_list(data):
     retVal = []
     for item in data:
         if isinstance(item, unicode):
-            item = item.encode('utf-8')
+            item = item.encode("utf8")
         elif isinstance(item, list):
             item = _conv_list(item)
         elif isinstance(item, dict):
@@ -66,10 +66,10 @@ def _conv_dict(data):
     for key, val in data.iteritems():
             
         if isinstance(key, unicode):
-            key = key.encode('utf-8')
+            key = key.encode("utf8")
             
         if isinstance(val, unicode):
-            val = val.encode('utf-8')
+            val = val.encode("utf8")
         elif isinstance(val, list):
             val = _conv_list(val)
         elif isinstance(val, dict):
@@ -91,6 +91,11 @@ class WechatBot(object):
                 "MessageSyncInterval"   : 1,
                 # log configuration
                 "LogLevel"          : logging.INFO,
+                # data saving configuration
+                "DataImageFolder"   : "dat",
+                "DataVoiceFolder"   : "dat",
+                "DataVideoFolder"   : "dat",
+                "DataEmojiFolder"   : "dat",
                 # interactive usage
                 "EnableInteracting" : True,
                 # scheduled events configuration
@@ -147,10 +152,10 @@ class WechatBot(object):
             "Base Request   :   " + self._baseRequest.__str__() + "\n" + \
             "SyncKey        :   " + self._SyncKey.__str__() + "\n" + \
             "synckey        :   " + self._synckey + "\n" + \
-            "User           :   " + self._User.__str__() + "\n" + \
-            "Contacts       :   " + len(self._ContactList).__str__() + " contacts. " + self._ContactList.__str__() + "\n" + \
-            "Groups         :   " + len(self._GroupList).__str__() + " groups. " + self._GroupList.__str__() + "\n" + \
-            "Non-contacts   :   " + len(self._NonContactList).__str__() + " non-contact users. " + self._NonContactList.__str__() + "\n" + \
+            "User           :   " + json.dumps(self._User, ensure_ascii = False).encode("utf8") + "\n" + \
+            "Contacts       :   " + len(self._ContactList).__str__() + " contacts. " + json.dumps(self._ContactList, ensure_ascii = False).encode("utf8") + "\n" + \
+            "Groups         :   " + len(self._GroupList).__str__() + " groups. " + json.dumps(self._GroupList, ensure_ascii = False).encode("utf8") + "\n" + \
+            "Non-contacts   :   " + len(self._NonContactList).__str__() + " non-contact users. " + json.dumps(self._NonContactList, ensure_ascii = False).encode("utf8") + "\n" + \
             "=============================\n"
 
         return  wechatbotStr
@@ -163,6 +168,8 @@ class WechatBot(object):
                 self._conf[key] = conf[key]
             else:
                 self._logger.warning("Invalid configuration: (%s : %s), ignored.", key, conf[key])
+        # update configuration
+        self._logger.setLevel(self._conf["LogLevel"])
 
         # get UUID
         if not self._getUUID():
@@ -380,43 +387,47 @@ sn  :   send text message by name
 
         return  self.sendMsgTextByID(self.getIDByName(name), content)
 
-    def procMsgText(self, grpName, usrName, content, msg):
+    def procMsgText(self, grpName, ufrName, utoName, content, msg):
 
         # an example
         """
-        if usrName != self._User["NickName"]:
+        if ufrName != self._User["NickName"]:
             if "" != grpName:
-                self.sendMsgTextByName(grpName, "At " + str(time.asctime(time.localtime(time.time()))) + ", " + usrName + " says : " + content)
+                self.sendMsgTextByName(grpName, "At " + str(time.asctime(time.localtime(time.time()))) + ", " + ufrName + " says : " + content)
             else:
-                self.sendMsgTextByName(usrName, "[" + str(time.asctime(time.localtime(time.time()))) + "][Auto reply]您的消息我已收到。")
+                self.sendMsgTextByName(ufrName, "[" + str(time.asctime(time.localtime(time.time()))) + "][Auto reply]您的消息我已收到。")
         """
         return
 
-    def procMsgImage(self, grpName, usrName, content, msg):
+    def procMsgImage(self, grpName, ufrName, utoName, msg):
 
         return
 
-    def procMsgVoice(self, grpName, usrName, content, msg):
+    def procMsgVoice(self, grpName, ufrName, utoName, msg):
 
         return
 
-    def procMsgCard(self, grpName, usrName, content, msg):
+    def procMsgCard(self, grpName, ufrName, utoName, msg):
 
         return
 
-    def procMsgEmoji(self, grpName, usrName, content, msg):
+    def procMsgEmoji(self, grpName, ufrName, utoName, msg):
 
         return
 
-    def procMsgAppLink(self, grpName, usrName, content, msg):
+    def procMsgAppLink(self, grpName, ufrName, utoName, content, msg):
 
         return
 
-    def procMsgVideo(self, grpName, usrName, content, msg):
+    def procMsgVideo(self, grpName, ufrName, utoName, msg):
 
         return
 
-    def procMsgRecall(self, grpName, usrName, content, msg):
+    def procMsgGroupRename(self, grpName, ufrName, utoName, content, msg):
+
+        return
+
+    def procMsgRecall(self, grpName, ufrName, utoName, content, msg):
 
         return
     
@@ -506,9 +517,9 @@ sn  :   send text message by name
 
         request = urllib2.Request(url = url)
         request.add_header("Referer", r"https://wx.qq.com/")
-        if "webwxgetvoice" == type:
+        if "VOICE" == type:
             request.add_header("Range", "bytes=0-")
-        elif "webwxgetvideo" == type:
+        elif "VIDEO" == type:
             request.add_header("Range", "bytes=0-")
         else:
             pass
@@ -774,117 +785,184 @@ sn  :   send text message by name
             self._logger.error("Unexpected exception: %s", traceback.format_exc())
             return  None    
 
-    def _procMsg(self, data):
+    def _procMsg(self, msgList):
 
         try:
-            for msg in data["AddMsgList"]:
+            for msg in msgList["AddMsgList"]:
 
-                msgType = msg["MsgType"]
-                # process message content
-                msg["Content"] = msg["Content"].replace("&lt;", "<").replace("&gt;", ">")
-                # check group message
-                grpName = ""
-                usrName = ""
-                content = ""
-                if "@@" == msg["FromUserName"][:2]:
-                    grpName = self.getGrpNameByID(msg["FromUserName"])
-                    if "@" == msg["Content"][:1]:
-                        usrName = self.getUsrNameByID(msg["Content"][:msg["Content"].find(":")])
-                        content = msg["Content"][(msg["Content"].find(":") + 6) :]
+                try:
+                    msgType = msg["MsgType"]
+                    # process message content
+                    msg["Content"] = msg["Content"].replace("&lt;", "<").replace("&gt;", ">")
+                    # check group message
+                    grpName = ""
+                    ufrName = ""
+                    utoName = ""
+                    content = ""
+                    if "@@" == msg["FromUserName"][:2]:
+                        grpName = self.getGrpNameByID(msg["FromUserName"])
+                        if "@" == msg["Content"][:1]:
+                            ufrName = self.getUsrNameByID(msg["Content"][:msg["Content"].find(":")])
+                            content = msg["Content"][(msg["Content"].find(":") + 6) :]
+                        else:
+                            content = msg["Content"]
+                        utoName = self.getUsrNameByID(msg["ToUserName"])
+                    elif "@@" == msg["ToUserName"][:2]:
+                        grpName = self.getGrpNameByID(msg["ToUserName"])
+                        ufrName = self.getUsrNameByID(msg["FromUserName"])
+                        utoName = ""
+                        if "@" == msg["Content"][:1]:
+                            content = msg["Content"][(msg["Content"].find(":") + 6) :]
+                        else:
+                            content = msg["Content"]
                     else:
+                        ufrName = self.getUsrNameByID(msg["FromUserName"])
+                        utoName = self.getUsrNameByID(msg["ToUserName"])
                         content = msg["Content"]
-                elif "@@" == msg["ToUserName"][:2]:
-                    grpName = self.getGrpNameByID(msg["ToUserName"])
-                    usrName = self.getUsrNameByID(msg["FromUserName"])
-                    if "@" == msg["Content"][:1]:
-                        content = msg["Content"][(msg["Content"].find(":") + 6) :]
-                    else:
-                        content = msg["Content"]
-                else:
-                    usrName = self.getUsrNameByID(msg["FromUserName"])
-                    content = msg["Content"]
 
-                # standard text message
-                if 1 == msgType:
-                    if "" == grpName:
-                        self._logger.info("Received a message from [%s] :\n%s", usrName, content)
+                    # standard text message
+                    if 1 == msgType:
+                        if "" == grpName:
+                            self._logger.info("Received a message from [%s] to [%s] with message ID %s:\n%s", ufrName, utoName, msg["MsgId"], content)
+                        else:
+                            self._logger.info("Received a message in group [%s] from [%s] to [%s] with message ID %s:\n%s", grpName, ufrName, utoName, msg["MsgId"], content)
+                        self.procMsgText(grpName, ufrName, utoName, content, msg)
+                    # image message
+                    elif 3 == msgType:
+                        if "" == grpName:
+                            self._logger.info("Received an image from [%s] to [%s] with message ID %s, saved in %s", ufrName, utoName, msg["MsgId"], self._conf["DataImageFolder"])
+                        else:
+                            self._logger.info("Received an image in group [%s] from [%s] to [%s] with message ID %s, saved in %s", grpName, ufrName, utoName, msg["MsgId"], self._conf["DataImageFolder"])
+                        
+                        try:
+                            url = self._uri + "/webwxgetmsgimg?MsgID=%s&skey=%s" % (msg["MsgId"], self._baseRequest["Skey"])
+                            data = self._get(url)
+                            if not os.path.exists(self._conf["DataImageFolder"]):
+                                os.makedirs(self._conf["DataImageFolder"])
+                            fn = os.path.join(self._conf["DataImageFolder"], msg["MsgId"] + ".jpg")
+                            file = open(fn, "wb")
+                            file.write(data)
+                            file.close()
+                        except Exception:
+                            self._logger.error("Unexpected exception: %s", traceback.format_exc())
+
+                        self.procMsgImage(grpName, ufrName, utoName, msg)
+                    # voice message
+                    elif 34 == msgType:
+                        if "" == grpName:
+                            self._logger.info("Received a voice message from [%s] to [%s] with message ID %s, saved in %s", ufrName, utoName, msg["MsgId"], self._conf["DataVoiceFolder"])
+                        else:
+                            self._logger.info("Received a voice message in group [%s] from [%s] to [%s] with message ID %s, saved in %s", grpName, ufrName, utoName, msg["MsgId"], self._conf["DataVoiceFolder"])
+
+                        try:
+                            url = self._uri + "/webwxgetvoice?MsgID=%s&skey=%s" % (msg["MsgId"], self._baseRequest["Skey"])
+                            data = self._get(url, "VOICE")
+                            if not os.path.exists(self._conf["DataVoiceFolder"]):
+                                os.makedirs(self._conf["DataVoiceFolder"])
+                            fn = os.path.join(self._conf["DataVoiceFolder"], msg["MsgId"] + ".mp3")
+                            file = open(fn, "wb")
+                            file.write(data)
+                            file.close()
+                        except Exception:
+                            self._logger.error("Unexpected exception: %s", traceback.format_exc())
+
+                        self.procMsgVoice(grpName, ufrName, utoName, msg)
+                    # card message
+                    elif 42 == msgType:
+                        if "" == grpName:
+                            self._logger.info("Received a card message from [%s] to [%s] with message ID %s :\n%s", ufrName, utoName, msg["MsgId"], json.dumps(msg["RecommendInfo"], ensure_ascii = False).encode("utf8"))
+                        else:
+                            self._logger.info("Received a card message in group [%s] from [%s] to [%s] with message ID %s :\n%s", grpName, ufrName, utoName, msg["MsgId"], json.dumps(msg["RecommendInfo"], ensure_ascii = False).encode("utf8"))
+                        self.procMsgCard(grpName, ufrName, utoName, msg)
+                    # emoji message
+                    elif 47 == msgType:
+                        if "" == grpName:
+                            self._logger.info("Received an emoji from [%s] to [%s] with message ID %s, saved in %s", ufrName, utoName, msg["MsgId"], self._conf["DataEmojiFolder"])
+                        else:
+                            self._logger.info("Received an emoji in group [%s] from [%s] to [%s] with message ID %s, saved in %s", grpName, ufrName, utoName, msg["MsgId"], self._conf["DataEmojiFolder"])
+
+                        try:
+                            url = self._uri + "/webwxgetmsgimg?MsgID=%s&skey=%s" % (msg["MsgId"], self._baseRequest["Skey"])
+                            data = self._get(url)
+                            ext = ".dat"
+                            if data[0:3] == "GIF":
+                                ext = ".gif"
+                            elif data[1:4] == "PNG":
+                                ext = ".png"
+                            elif data[0:2] == "BM":
+                                ext = ".bmp"
+                            if not os.path.exists(self._conf["DataEmojiFolder"]):
+                                os.makedirs(self._conf["DataEmojiFolder"])
+                            fn = os.path.join(self._conf["DataEmojiFolder"], msg["MsgId"] + ext)
+                            file = open(fn, "wb")
+                            file.write(data)
+                            file.close()
+                        except Exception:
+                            self._logger.error("Unexpected exception: %s", traceback.format_exc())
+
+                        self.procMsgEmoji(grpName, ufrName, utoName, msg)
+                    # shared app link message
+                    elif 49 == msgType:
+                        if "" == grpName:
+                            self._logger.info("Received an app link message from [%s] to [%s] with message ID %s :\n%s", ufrName, utoName, msg["MsgId"], content)
+                        else:
+                            self._logger.info("Received an app link message in group [%s] from [%s] to [%s] with message ID %s :\n%s", grpName, ufrName, utoName, msg["MsgId"], content)
+                        self.procMsgAppLink(grpName, ufrName, utoName, content, msg)
+                    # contact information update
+                    elif 51 == msgType:
+                        # content organized in xml format as the following (<br/> are removed)
+                        """
+                        <msg>
+	                        <op id="4">
+		                        <username>filehelper,...,weixin</username>
+		                        <unreadchatlist></unreadchatlist>
+		                        <unreadfunctionlist>
+			                    </unreadfunctionlist>
+	                        </op>
+                        </msg>
+                        """
+                        # doc = xml.dom.minidom.parseString(content)
+                        # self._logger.info(doc.toprettyxml())
+                        pass
+                    # video message
+                    elif 62 == msgType:
+                        if "" == grpName:
+                            self._logger.info("Received a video message from [%s] to [%s] with message ID %s, saved in %s", ufrName, utoName, msg["MsgId"], self._conf["DataVideoFolder"])
+                        else:
+                            self._logger.info("Received a video message in group [%s] from [%s] to [%s] with message ID %s, saved in %s", grpName, ufrName, utoName, msg["MsgId"], self._conf["DataVideoFolder"])
+
+                        try:
+                            url = self._uri + "/webwxgetvideo?MsgID=%s&skey=%s" % (msg["MsgId"], self._baseRequest["Skey"])
+                            data = self._get(url, "VIDEO")
+                            if not os.path.exists(self._conf["DataVideoFolder"]):
+                                os.makedirs(self._conf["DataVideoFolder"])
+                            fn = os.path.join(self._conf["DataVideoFolder"], msg["MsgId"] + ".mp4")
+                            file = open(fn, "wb")
+                            file.write(data)
+                            file.close()
+                        except Exception:
+                            self._logger.error("Unexpected exception: %s", traceback.format_exc())
+
+                        self.procMsgVideo(grpName, ufrName, utoName, msg)
+                    # group rename
+                    elif 10000 == msgType:
+                        self._logger.info("Group name change in group ID[%s]: %s", msg["FromUserName"], content)
+                        self.procMsgGroupRename(grpName, ufrName, utoName, content, msg)
+                    # recall message
+                    elif 10002 == msgType:
+                        if "" == grpName:
+                            self._logger.info("Received a message recall from [%s] to [%s] with message ID %s :\n%s", ufrName, utoName, msg["MsgId"], content)
+                        else:
+                            self._logger.info("Received a message recall in group [%s] from [%s] to [%s] with message ID %s :\n%s", grpName, ufrName, utoName, msg["MsgId"], content)
+                        self.procMsgRecall(grpName, ufrName, utoName, content, msg)
+                    # unknown message type
                     else:
-                        self._logger.info("Received a message in group [%s] from [%s] :\n%s", grpName, usrName, content)
-                    self.procMsgText(grpName, usrName, content, msg)
-                # image message
-                elif 3 == msgType:
-                    if "" == grpName:
-                        self._logger.info("Received an image from [%s] :\n%s", usrName, content)
-                    else:
-                        self._logger.info("Received an image in group [%s] from [%s] :\n%s", grpName, usrName, content)
-                    self.procMsgImage(grpName, usrName, content, msg)
-                # voice message
-                elif 34 == msgType:
-                    if "" == grpName:
-                        self._logger.info("Received a voice message from [%s] :\n%s", usrName, content)
-                    else:
-                        self._logger.info("Received a voice message in group [%s] from [%s] :\n%s", grpName, usrName, content)
-                    self.procMsgVoice(grpName, usrName, content, msg)
-                # card message
-                elif 42 == msgType:
-                    if "" == grpName:
-                        self._logger.info("Received a card message from [%s] :\n%s", usrName, content)
-                    else:
-                        self._logger.info("Received a card message in group [%s] from [%s] :\n%s", grpName, usrName, content)
-                    self.procMsgCard(grpName, usrName, content, msg)
-                # emoji message
-                elif 47 == msgType:
-                    if "" == grpName:
-                        self._logger.info("Received an emoji from [%s] :\n%s", usrName, content)
-                    else:
-                        self._logger.info("Received an emoji in group [%s] from [%s] :\n%s", grpName, usrName, content)
-                    self.procMsgEmoji(grpName, usrName, content, msg)
-                # shared app link message
-                elif 49 == msgType:
-                    if "" == grpName:
-                        self._logger.info("Received an app link message from [%s] :\n%s", usrName, content)
-                    else:
-                        self._logger.info("Received an app link message in group [%s] from [%s] :\n%s", grpName, usrName, content)
-                    self.procMsgAppLink(grpName, usrName, content, msg)
-                # contact information update
-                elif 51 == msgType:
-                    # content organized in xml format as the following (<br/> are removed)
-                    """
-                    <msg>
-	                    <op id="4">
-		                    <username>filehelper,...,weixin</username>
-		                    <unreadchatlist></unreadchatlist>
-		                    <unreadfunctionlist>
-			                </unreadfunctionlist>
-	                    </op>
-                    </msg>
-                    """
-                    # doc = xml.dom.minidom.parseString(content)
-                    # self._logger.info(doc.toprettyxml())
-                    pass
-                # video message
-                elif 62 == msgType:
-                    if "" == grpName:
-                        self._logger.info("Received a video message from [%s] :\n%s", usrName, content)
-                    else:
-                        self._logger.info("Received a video message in group [%s] from [%s] :\n%s", grpName, usrName, content)
-                    self.procMsgVideo(grpName, usrName, content, msg)
-                # group rename
-                elif 10000 == msgType:
-                    self._logger.info("Group name change in group ID[%s]: %s", msg["FromUserName"], content)
-                # recall message
-                elif 10002 == msgType:
-                    if "" == grpName:
-                        self._logger.info("Received a message recall from [%s] :\n%s", usrName, content)
-                    else:
-                        self._logger.info("Received a message recall in group [%s] from [%s] :\n%s", grpName, usrName, content)
-                    self.procMsgRecall(grpName, usrName, content, msg)
-                # unknown message type
-                else:
-                    if "" == grpName:
-                        self._logger.warning("Received a message from [%s] of unknown type %d.", usrName, msgType)
-                    else:
-                        self._logger.warning("Received a message in group [%s] from [%s] of unknown type %d", grpName, usrName, msgType)
+                        if "" == grpName:
+                            self._logger.warning("Received a message from [%s] to [%s] of unknown type %d : \n%s", ufrName, utoName, msgType, msg.__str__())
+                        else:
+                            self._logger.warning("Received a message in group [%s] from [%s] to [%s] of unknown type %d : \n%s", grpName, ufrName, utoName, msgType, msg.__str__())
+                except Exception:
+                    self._logger.error("Unexpected exception: %s", traceback.format_exc())
 
         except Exception:
             self._logger.error("Unexpected exception: %s", traceback.format_exc())

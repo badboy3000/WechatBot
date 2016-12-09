@@ -1,8 +1,12 @@
 #! /bin/bash 
 
+DIR=log
 LOG=`date +%Y%m%d%H%M%S`.log
-nohup   python  main.py "{ \"EnableInteracting\" : false }" 1> QRCODE${LOG} 2> ${LOG} &
+
+mkdir -p ${DIR}
+
+nohup   python  main.py "{ \"EnableInteracting\" : false }" 1> ${DIR}/QRCODE${LOG} 2> ${DIR}/${LOG} &
 
 sleep 1
-cat QRCODE${LOG}
+cat ${DIR}/QRCODE${LOG}
 
