@@ -153,22 +153,29 @@ def main():
 
     # default configuration
     conf = {
+            # wechat configuration
             #"AppID"             : "wx782c26e4c19acffb",
             #"Lang"              : "zh_CN",
             #"DeviceID"          : "e" + repr(random.random())[2 : 17],
             #"MessageSyncInterval"   : 1,
-            #"LogLevel"          : logging.INFO,
+            # log configuration
+            "LogLevel"          : logging.INFO,
+            # interactive usage
+            "EnableInteracting" : True,
+            # scheduled events configuration
+            "EnableScheduling"  : True,
             "EventConfFile"     : "sampleEvents.conf",
         }
 
-    # configuration in command line arguments
+    # configuration in command line arguments (in json format)
     for i in range(1, len(sys.argv)):
-        logging.debug("Argument : %s", sys.argv[i])
-        arg = string.split(sys.argv[i], "=", 1)
-        if 1 == len(arg):
-            conf[arg[0]] = True
-        else:
-            conf[arg[0]] = arg[1]
+        logging.info("Argument : %s", sys.argv[i])
+        try:
+            data = json.loads(sys.argv[i], object_hook = wechatbot._conv_dict)
+            for key in data.keys():
+                conf[key] = data[key]
+        except Exception:
+            logging.warning("Argument %s cannot be parsed. Ignored.", sys.argv[i])
     
     # wechat bot
     wbot = WechatBotDemo()

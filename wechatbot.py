@@ -84,11 +84,17 @@ class WechatBot(object):
     def __init__(self):
 
         self._conf = {
+                # wechat configuration
                 "AppID"             : "wx782c26e4c19acffb",
                 "Lang"              : "zh_CN",
                 "DeviceID"          : "e" + repr(random.random())[2 : 17],
                 "MessageSyncInterval"   : 1,
+                # log configuration
                 "LogLevel"          : logging.INFO,
+                # interactive usage
+                "EnableInteracting" : True,
+                # scheduled events configuration
+                "EnableScheduling"  : True,
                 "EventConfFile"     : "",
             }
         self._uuid  = ""
@@ -200,36 +206,42 @@ class WechatBot(object):
             recvThread = threading.Thread(target = self._recvMsg)
             recvThread.setDaemon(True)
             recvThread.start()
-            scheThread = threading.Thread(target = self._scheMsg)
-            scheThread.setDaemon(True)
-            scheThread.start()
+
+            if self._conf["EnableScheduling"]:
+                scheThread = threading.Thread(target = self._scheMsg)
+                scheThread.setDaemon(True)
+                scheThread.start()
 
             while self._isRunning:
 
-                try:
-                    cmd = raw_input("Press h for help, q to quit:\n")
+                if self._conf["EnableInteracting"]:
+                    try:
+                        cmd = raw_input("Press h for help, q to quit:\n")
     
-                    if "q" == cmd:
-                        self._isRunning = False
-                    elif "h" == cmd:
-                        self.help()
-                    elif "si" == cmd:
-                        id = raw_input("Please input target ID, enter to confirm:")
-                        content = raw_input("Please input message text, enter to send:")
-                        self.sendMsgTextByID(id, content)
-                    elif "sn" == cmd:
-                        id = raw_input("Please input target name, enter to confirm:")
-                        content = raw_input("Please input message text, enter to send:")
-                        self.sendMsgTextByName(id, content)
-                    else:
-                        self._logger.warning("Unknown command %s, ignored.", cmd)
-                except EOFError, e:
-                    time.sleep(1)
-                except Exception:
-                    self._logger.error("Unexpected exception: %s", traceback.format_exc())
+                        if "q" == cmd:
+                            self._isRunning = False
+                        elif "h" == cmd:
+                            self.help()
+                        elif "si" == cmd:
+                            id = raw_input("Please input target ID, enter to confirm:")
+                            content = raw_input("Please input message text, enter to send:")
+                            self.sendMsgTextByID(id, content)
+                        elif "sn" == cmd:
+                            id = raw_input("Please input target name, enter to confirm:")
+                            content = raw_input("Please input message text, enter to send:")
+                            self.sendMsgTextByName(id, content)
+                        else:
+                            self._logger.warning("Unknown command %s, ignored.", cmd)
+                    except EOFError, e:
+                        time.sleep(1)
+                    except Exception:
+                        self._logger.error("Unexpected exception: %s", traceback.format_exc())
+                        time.sleep(1)
+                else:
                     time.sleep(1)
 
-            scheThread.join()
+            if self._conf["EnableScheduling"]:
+                scheThread.join()
             recvThread.join()
 
         except Exception:
@@ -243,16 +255,20 @@ class WechatBot(object):
 
     def help(self):
 
-        self._logger.critical(
-"""
+        helpInfo = """
 ==========WechatBot==========
 Help information:
 q   :   quit
 h   :   print this help information
 si  :   send text message by ID
 sn  :   send text message by name
-============================="""
-            )
+=============================
+"""
+
+        if self._conf["EnableInteracting"]:
+            print(helpInfo)
+        else:
+            self._logger.critical(helpInfo)
 
         return
     
