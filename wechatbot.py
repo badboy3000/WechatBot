@@ -168,7 +168,7 @@ class WechatBot(object):
             self._logger.error("Failed to generate QRCode.")
             return  False
         else:
-            print("Please scan the QRCode to login.")
+            self._logger.info("Please scan the QRCode to login.")
 
         # login
         if not self._login():
@@ -198,34 +198,42 @@ class WechatBot(object):
         try:
 
             recvThread = threading.Thread(target = self._recvMsg)
+            recvThread.setDaemon(True)
             recvThread.start()
             scheThread = threading.Thread(target = self._scheMsg)
+            scheThread.setDaemon(True)
             scheThread.start()
 
             while self._isRunning:
 
-                cmd = raw_input("Press h for help, q to quit:\n")
-
-                if "q" == cmd:
-                    self._isRunning = False
-                elif "h" == cmd:
-                    self.help()
-                elif "si" == cmd:
-                    id = raw_input("Please input target ID, enter to confirm:")
-                    content = raw_input("Please input message text, enter to send:")
-                    self.sendMsgTextByID(id, content)
-                elif "sn" == cmd:
-                    id = raw_input("Please input target name, enter to confirm:")
-                    content = raw_input("Please input message text, enter to send:")
-                    self.sendMsgTextByName(id, content)
-                else:
-                    self._logger.warning("Unknown command %s, ignored.", cmd)
+                try:
+                    cmd = raw_input("Press h for help, q to quit:\n")
+    
+                    if "q" == cmd:
+                        self._isRunning = False
+                    elif "h" == cmd:
+                        self.help()
+                    elif "si" == cmd:
+                        id = raw_input("Please input target ID, enter to confirm:")
+                        content = raw_input("Please input message text, enter to send:")
+                        self.sendMsgTextByID(id, content)
+                    elif "sn" == cmd:
+                        id = raw_input("Please input target name, enter to confirm:")
+                        content = raw_input("Please input message text, enter to send:")
+                        self.sendMsgTextByName(id, content)
+                    else:
+                        self._logger.warning("Unknown command %s, ignored.", cmd)
+                except EOFError, e:
+                    time.sleep(1)
+                except Exception:
+                    self._logger.error("Unexpected exception: %s", traceback.format_exc())
+                    time.sleep(1)
 
             scheThread.join()
             recvThread.join()
 
         except Exception:
-            self._logger.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected exception: %s", traceback.format_exc())
             return  False
 
         # print wechat information
@@ -235,8 +243,9 @@ class WechatBot(object):
 
     def help(self):
 
-        print(
-"""==========WechatBot==========
+        self._logger.critical(
+"""
+==========WechatBot==========
 Help information:
 q   :   quit
 h   :   print this help information
@@ -347,7 +356,7 @@ sn  :   send text message by name
                 self._logger.warning("Failed to send a message to ID[%s]:\n%s", id, content)
     
         except Exception:
-            self._logger.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected exception: %s", traceback.format_exc())
         
         return  False
 
@@ -446,7 +455,7 @@ sn  :   send text message by name
                         else:
                             self._logger.warning("Unsupported message type %d.", event["MsgType"])
             except Exception:
-                self._logger.error("Unexpected expection: %s", traceback.format_exc())
+                self._logger.error("Unexpected exception: %s", traceback.format_exc())
         """
         return    
 
@@ -473,7 +482,7 @@ sn  :   send text message by name
         except httplib.HTTPException, e:
             self._logger.error("HTTPException: %s", e.__str__())
         except Exception:
-            self._logger.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected exception: %s", traceback.format_exc())
 
         return  ""
 
@@ -500,7 +509,7 @@ sn  :   send text message by name
         except httplib.HTTPException, e:
             self._logger.error("HTTPException: %s", e.__str__())
         except Exception:
-            self._logger.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected exception: %s", traceback.format_exc())
 
         return  ""
 
@@ -536,12 +545,12 @@ sn  :   send text message by name
             img.show()
             return  True
         except Exception:
-            self._logger.debug("Failed to display qrcode image due to expection: %s \nTrying to display qrcode in tty mode.", traceback.format_exc())
+            self._logger.debug("Failed to display qrcode image due to exception: %s \nTrying to display qrcode in tty mode.", traceback.format_exc())
             try:
                 qr.print_ascii(invert = True)
                 return  True
             except Exception:
-                self._logger.error("Unexpected expection: %s", traceback.format_exc())
+                self._logger.error("Unexpected exception: %s", traceback.format_exc())
 
         return  False
 
@@ -565,7 +574,7 @@ sn  :   send text message by name
                         self._logger.error("Failed to parse redirect uri from data %s.", info)
                         break;
                 elif "201" == stat:
-                    print("Please confirm login on your cellphone.")
+                    self._logger.info("Please confirm login on your cellphone.")
                 elif "408" == stat:
                     self._logger.error("Login timeout.")
                     break
@@ -622,7 +631,7 @@ sn  :   send text message by name
                 return  0 == data["BaseResponse"]["Ret"]
                 
         except Exception:
-            self._logger.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected exception: %s", traceback.format_exc())
 
         return  False
     
@@ -651,7 +660,7 @@ sn  :   send text message by name
                 else:
                     self._ContactList.append(contact)
         except Exception:
-            self._logger.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected exception: %s", traceback.format_exc())
             return  False
 
         if len(self._GroupList) > 0:
@@ -667,7 +676,7 @@ sn  :   send text message by name
             try:
                 self._GroupList = data["ContactList"]
             except Exception:
-                self._logger.error("Unexpected expection: %s", traceback.format_exc())
+                self._logger.error("Unexpected exception: %s", traceback.format_exc())
                 return  False
 
         return  True
@@ -685,7 +694,7 @@ sn  :   send text message by name
         try:
             return  data["ContactList"]
         except Exception:
-            self._logger.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected exception: %s", traceback.format_exc())
             return  None
 
     def _syncCheck(self):
@@ -724,7 +733,7 @@ sn  :   send text message by name
                     data = re.search(r'window.synccheck={retcode:"(\d+)",selector:"(\d+)"}', data)
                     return  [data.group(1), data.group(2)]
                 except Exception:
-                    self._logger.warning("Unexpected expection while checking url %s : %s", url, traceback.format_exc())
+                    self._logger.warning("Unexpected exception while checking url %s : %s", url, traceback.format_exc())
             
             self._syncHost = ""
             return  [-1, -1]
@@ -746,7 +755,7 @@ sn  :   send text message by name
             
             return  data
         except Exception:
-            self._logger.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected exception: %s", traceback.format_exc())
             return  None    
 
     def _procMsg(self, data):
@@ -835,7 +844,7 @@ sn  :   send text message by name
                     </msg>
                     """
                     # doc = xml.dom.minidom.parseString(content)
-                    # print(doc.toprettyxml())
+                    # self._logger.info(doc.toprettyxml())
                     pass
                 # video message
                 elif 62 == msgType:
@@ -862,7 +871,7 @@ sn  :   send text message by name
                         self._logger.warning("Received a message in group [%s] from [%s] of unknown type %d", grpName, usrName, msgType)
 
         except Exception:
-            self._logger.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected exception: %s", traceback.format_exc())
 
         return    
 
@@ -908,6 +917,6 @@ sn  :   send text message by name
                 schedule.run_pending()
                 time.sleep(1)
         except Exception:
-            self._logger.error("Unexpected expection: %s", traceback.format_exc())
+            self._logger.error("Unexpected exception: %s", traceback.format_exc())
 
         return    
