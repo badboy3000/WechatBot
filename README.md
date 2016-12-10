@@ -52,3 +52,7 @@ The scheduled job processing function is:
 - scheJob()           : check pending jobs per minute and execute them
 
 Furthermore, more sendMsg functions can be defined.
+
+## Notes
+
+- UserName returned by Wechat server changes per login.
