@@ -989,6 +989,10 @@ sn  :   send text message by name
                     self._logger.debug("Message received.")
                     data = self._sync()
                     self._procMsg(data)
+                elif "3" == sel:
+                    self._logger.debug("Unknown selector code: %s, trying to receive message.")
+                    data = self._sync()
+                    self._procMsg(data)
                 elif "7" == sel:
                     self._logger.debug("Activity using cellphone detected.")
                     data = self._sync()
