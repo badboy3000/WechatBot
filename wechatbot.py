@@ -366,10 +366,10 @@ sn  :   send text message by name
             if 0 == data["BaseResponse"]["Ret"]:
                 if "@@" == id[:2]:
                     grpName = self.getGrpNameByID(id)
-                    self._logger.info("Sent a message in group [%s]:\n%s", grpName, content)
+                    self._logger.info("Sent a message in group [%s][%s]:\n%s", id, grpName, content)
                 elif "@" == id[:1]:
                     usrName = self.getUsrNameByID(id)
-                    self._logger.info("Sent a message to [%s]:\n%s", usrName, content)
+                    self._logger.info("Sent a message to [%s][%s]:\n%s", id, usrName, content)
                 else:
                     self._logger.info("Sent a message to ID[%s]:\n%s", id, content)
 

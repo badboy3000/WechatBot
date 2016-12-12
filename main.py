@@ -59,6 +59,58 @@ class WechatBotDemo(wechatbot.WechatBot):
             else:
                 self.sendMsgTextByName(ufrName, "[" + str(time.asctime(time.localtime(time.time()))) + "][Auto reply]您的消息我已收到。")
         """
+
+
+        if ufrName != self._User["NickName"]:
+            if "@+Bot" == content[:5]:
+                
+                url = "http://www.tuling123.com/openapi/api"
+                prm = {
+                        "key"       : "f4145efed8a0454eb6e44de485535641",
+                        "info"      : content[5:],
+                        "userid"    : "0",
+                        "loc"       : "Beijing",
+                    }
+                try:
+                    ret = self._post(url, prm, False)
+                    ret = json.loads(ret)
+                    if 100000 == ret["code"]:
+                        if "" != grpName:
+                            self.sendMsgTextByName(grpName, ret["text"])
+                        else:
+                            self.sendMsgTextByName(ufrName, ret["text"])
+                    elif 200000 == ret["code"]:
+                        if "" != grpName:
+                            self.sendMsgTextByName(grpName, ret["text"] + " " + ret["url"])
+                        else:
+                            self.sendMsgTextByName(ufrName, ret["text"] + " " + ret["url"])
+                    elif 302000 == ret["code"]:
+                        if "" != grpName:
+                            self.sendMsgTextByName(grpName, ret["list"].__str__())
+                        else:
+                            self.sendMsgTextByName(ufrName, ret["list"].__str__())
+                    elif 40001 == ret["code"]:
+                        self._logger.error("Tuling Robot Error: key error %s.", ret["text"])
+                    elif 40002 == ret["code"]:
+                        self._logger.error("Tuling Robot Error: empty info %s.", ret["text"])
+                    elif 40004 == ret["code"]:
+                        if "" != grpName:
+                            self.sendMsgTextByName(grpName, "Sorry, I'm toooo tired today, perhaps tomorrow.")
+                        else:
+                            self.sendMsgTextByName(ufrName, "Sorry, I'm toooo tired today, perhaps tomorrow.")
+                    elif 40007 == ret["code"]:
+                        self._logger.error("Tuling Robot Error: format error %s.", ret["text"])
+                    else:
+                        if "" != grpName:
+                            self.sendMsgTextByName(grpName, "Sorry, corresponding service unsupported yet.")
+                        else:
+                            self.sendMsgTextByName(ufrName, "Sorry, corresponding service unsupported yet.")
+                except Exception:
+                    if "" != grpName:
+                        self.sendMsgTextByName(grpName, "Sorry, service failed for unknown reasons. Please contact administrator for further information.")
+                    else:
+                        self.sendMsgTextByName(ufrName, "Sorry, service failed for unknown reasons. Please contact administrator for further information.")                
+
         return
 
     # override processing function
